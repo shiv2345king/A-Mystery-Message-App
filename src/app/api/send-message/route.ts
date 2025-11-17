@@ -1,8 +1,7 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "../../../../lib/db.connect";
-import {UserModel} from "@/model/User";
-import {MessageModel} from "@/model/User";
+import { UserModel } from "@/model/User";
+import mongoose from "mongoose";
 
 export async function GET(req: NextRequest) {
   try {
@@ -69,14 +68,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    await MessageModel.create({
+    // Push the new message into user's messages array
+    const message = {
+      _id: new mongoose.Types.ObjectId(), // generate new ObjectId
       content,
-      ownerId: user._id,
-    });
+      createdAt: new Date(),
+    };
+
+    user.messages.push(message);
+    await user.save();
 
     return NextResponse.json({
       success: true,
       message: "Message sent successfully",
+      data: message,
     });
   } catch (error) {
     console.error("POST /api/send-message error:", error);

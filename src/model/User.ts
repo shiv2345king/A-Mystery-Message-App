@@ -1,11 +1,13 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
+// Embedded message interface
 export interface Message {
+  _id?: Types.ObjectId; // optional, auto-generated
   content: string;
   createdAt: Date;
-  _id: string;
 }
 
+// User interface
 export interface User extends Document {
   username: string;
   email: string;
@@ -18,15 +20,13 @@ export interface User extends Document {
   createdAt: Date;
 }
 
+// Message schema (embedded)
 const MessageSchema = new Schema<Message>({
   content: { type: String, required: true },
   createdAt: { type: Date, default: Date.now },
 });
 
-export const MessageModel =
-  mongoose.models.Message ||
-  mongoose.model<Message>("Message", MessageSchema);
-
+// User schema
 const UserSchema = new Schema<User>({
   username: { type: String, required: true, unique: true },
   email: { type: String, required: true, unique: true },
@@ -39,5 +39,7 @@ const UserSchema = new Schema<User>({
   createdAt: { type: Date, default: Date.now },
 });
 
+// User model
 export const UserModel =
   mongoose.models.User || mongoose.model<User>("User", UserSchema);
+
