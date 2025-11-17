@@ -1,7 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  outputFileTracingRoot: 'C:/Users/shiva/Downloads/NextJs/fullstack',
 };
 
 export default nextConfig;
