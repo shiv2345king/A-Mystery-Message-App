@@ -31,11 +31,10 @@ export default function VerifyAccount() {
 
   const onSubmit = async (data: z.infer<typeof verifySchema>) => {
     try {
-      const response = await axios.post<ApiResponse>(`/api/verify-code`, {
-        username: params.username,
-        code: data.code,
-      });
-
+      const response = await axios.post<ApiResponse>("/api/verify-code", {
+  username: decodeURIComponent(params.username).trim().toLowerCase(),
+  code: data.code.trim(),
+});
       toast.success(response.data.message);
       router.replace('/sign-in');
     } catch (error) {

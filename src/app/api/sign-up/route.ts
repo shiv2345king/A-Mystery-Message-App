@@ -1,7 +1,7 @@
-import dbConnect from '../../../../lib/db.connect';
-import {UserModel} from '@/model/User';
-import bcrypt from 'bcryptjs';
-import { sendVerificationEmail } from '../../../helpers/sendVerificatinEmail';
+import dbConnect from "../../../../lib/db.connect";
+import { UserModel } from "@/model/User";
+import bcrypt from "bcryptjs";
+import { sendVerificationEmail } from "../../../helpers/sendVerificatinEmail";
 
 export async function POST(request: Request) {
   await dbConnect();
@@ -9,8 +9,11 @@ export async function POST(request: Request) {
   try {
     const { username, email, password } = await request.json();
 
+    const normalizedUsername = username.trim().toLowerCase();
+    const normalizedEmail = email.trim().toLowerCase();
+
     const existingVerifiedUserByUsername = await UserModel.findOne({
-      username,
+      username: normalizedUsername,
       isVerified: true,
     });
 
@@ -18,42 +21,44 @@ export async function POST(request: Request) {
       return Response.json(
         {
           success: false,
-          message: 'Username is already taken',
+          message: "Username is already taken",
         },
         { status: 400 }
       );
     }
 
-    const existingUserByEmail = await UserModel.findOne({ email });
-    let verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const existingUserByEmail = await UserModel.findOne({
+      email: normalizedEmail,
+    });
+
+    const verifyCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const verifyCodeExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
     if (existingUserByEmail) {
       if (existingUserByEmail.isVerified) {
         return Response.json(
           {
             success: false,
-            message: 'User already exists with this email',
+            message: "User already exists with this email",
           },
           { status: 400 }
         );
-      } else {
-        const hashedPassword = await bcrypt.hash(password, 10);
-        existingUserByEmail.password = hashedPassword;
-        existingUserByEmail.verifyCode = verifyCode;
-        existingUserByEmail.verifyCodeExpiry = new Date(Date.now() + 3600000);
-        await existingUserByEmail.save();
       }
-    } else {
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 1);
 
+      existingUserByEmail.username = normalizedUsername;
+      existingUserByEmail.password = hashedPassword;
+      existingUserByEmail.verifyCode = verifyCode;
+      existingUserByEmail.verifyCodeExpiry = verifyCodeExpiry;
+
+      await existingUserByEmail.save();
+    } else {
       const newUser = new UserModel({
-        username,
-        email,
+        username: normalizedUsername,
+        email: normalizedEmail,
         password: hashedPassword,
         verifyCode,
-        verifyCodeExpiry: expiryDate,
+        verifyCodeExpiry,
         isVerified: false,
         isAcceptingMessages: true,
         messages: [],
@@ -62,12 +67,12 @@ export async function POST(request: Request) {
       await newUser.save();
     }
 
-    // Send verification email
     const emailResponse = await sendVerificationEmail(
-      email,
-      username,
+      normalizedEmail,
+      normalizedUsername,
       verifyCode
     );
+
     if (!emailResponse.success) {
       return Response.json(
         {
@@ -81,16 +86,17 @@ export async function POST(request: Request) {
     return Response.json(
       {
         success: true,
-        message: 'User registered successfully. Please verify your account.',
+        message: "User registered successfully. Please verify your account.",
       },
       { status: 201 }
     );
   } catch (error) {
-    console.error('Error registering user:', error);
+    console.error("Error registering user:", error);
+
     return Response.json(
       {
         success: false,
-        message: 'Error registering user',
+        message: "Error registering user",
       },
       { status: 500 }
     );
