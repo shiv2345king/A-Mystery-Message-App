@@ -1,12 +1,4 @@
-import { TransactionalEmailsApi, SendSmtpEmail } from "@getbrevo/brevo";
 import { ApiResponse } from "@/types/ApiResponse";
-
-const apiInstance = new TransactionalEmailsApi();
-
-apiInstance.setApiKey(
-  0,
-  process.env.BREVO_API_KEY as string
-);
 
 export async function sendVerificationEmail(
   email: string,
@@ -21,39 +13,52 @@ export async function sendVerificationEmail(
       };
     }
 
-    const sendSmtpEmail = new SendSmtpEmail();
-
-    sendSmtpEmail.sender = {
-      name: "Mystery Message",
-      email: process.env.SENDER_EMAIL,
-    };
-
-    sendSmtpEmail.to = [
-      {
-        email,
-        name: username,
+    const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "api-key": process.env.BREVO_API_KEY,
+        "content-type": "application/json",
       },
-    ];
+      body: JSON.stringify({
+        sender: {
+          name: "Mystery Message",
+          email: process.env.SENDER_EMAIL,
+        },
+        to: [
+          {
+            email,
+            name: username,
+          },
+        ],
+        subject: "Mystery Message Verification Code",
+        htmlContent: `
+          <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2>Hello ${username}</h2>
+            <p>Your verification code is:</p>
+            <h1 style="letter-spacing: 6px;">${verifyCode}</h1>
+            <p>This code expires in 1 hour.</p>
+          </div>
+        `,
+      }),
+    });
 
-    sendSmtpEmail.subject = "Mystery Message Verification Code";
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Brevo API error:", errorData);
 
-    sendSmtpEmail.htmlContent = `
-      <div style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2>Hello ${username}</h2>
-        <p>Your verification code is:</p>
-        <h1 style="letter-spacing: 6px;">${verifyCode}</h1>
-        <p>This code expires in 1 hour.</p>
-      </div>
-    `;
-
-    await apiInstance.sendTransacEmail(sendSmtpEmail);
+      return {
+        success: false,
+        message: errorData?.message || "Failed to send verification email.",
+      };
+    }
 
     return {
       success: true,
       message: "Verification email sent successfully.",
     };
-  } catch (error: any) {
-    console.error("Brevo API email error:", error?.response?.body || error);
+  } catch (error) {
+    console.error("Email sending error:", error);
 
     return {
       success: false,
